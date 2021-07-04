@@ -1,0 +1,188 @@
+﻿@page "/"
+
+
+@if (popupAdauga)
+{
+    <div class="modal" tabindex="-1" style="display:block" role="dialog">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title">Adauga Produs</h3>
+                    <button type="button" class="close" @onclick="ClosePopupAdauga">
+                        <span aria-hidden="true">X</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="@produsNou" OnValidSubmit="@AdaugaProdus">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+                        <InputNumber class="form-control" type="number" maxlength="5" placeholder="Cod" @bind-Value="produsNou.Cod" />
+                        <InputText class="form-control" type="text" placeholder="Descriere" @bind-Value="produsNou.Descriere" />
+                        <InputNumber class="form-control" type="text" placeholder="Pret" step=".01" @bind-Value="produsNou.Pret" />
+                        <InputNumber class="form-control" type="text" placeholder="Cantitate" @bind-Value="produsNou.Cantitate" /> <br />
+                        <div style="text-align:center">
+                            <button class="btn btn-primary">Adauga Produs</button>
+                        </div><br />
+                    </EditForm>
+                    @if (alert)
+                    {
+                        <h6 style="text-align:center; color:red;">Nu pot fi adaugate mai mult de 3 produse.</h6>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (popupSterge)
+{
+    <div class="modal" tabindex="-1" style="display:block" role="dialog">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title">Sterge Produs</h3>
+                    <button type="button" class="close" @onclick="ClosePopupSterge">
+                        <span aria-hidden="true">X</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                
+                        <input class="form-control" type="number" maxlength="5" placeholder="Cod" @bind="produsNou.Cod" /> <br />
+                        <div style="text-align:center">
+                            <button class="btn btn-primary" @onclick="StergeProdus">Sterge Produs</button>
+                        </div><br />
+                    @if (alert)
+                    {
+                        <h6 style="text-align:center; color:red;">Codul introdus nu exista.</h6>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<br />
+<br />
+
+@if (produse == null)
+{
+    <p><em>Nu exista produse disponibile.</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Cod</th>
+                <th>Descriere</th>
+                <th>Valoare</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var produs in produse)
+            {
+                <tr>
+                    <td>@produs.Cod</td>
+                    <td>@produs.Descriere</td>
+                    @if (produs.getValoare() > 1000)
+                    {
+                        <td style="background-color:red">@produs.getValoare()</td>
+                    }
+                    else
+                    {
+                        <td>@produs.getValoare()</td>
+                    }
+
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<br />
+<br />
+<div style="text-align:center">
+    <button class="btn btn-primary" style="margin:5px;" @onclick="ShowPopupAdauga">Adauga Produs</button>
+    <button class="btn btn-primary" @onclick="ShowPopupSterge">Sterge Produs</button>
+</div>
+
+
+
+
+@code{
+    @using AssignmentRelevance2.Classes;
+    @using System.Data.SqlClient;
+    Produse produsNou = new Produse();
+    List<Produse> produse = Methods.FetchProduse();
+    SqlConnection con = new SqlConnection();
+    SqlCommand com = new SqlCommand();
+    bool popupAdauga = false, popupSterge = false, alert = false;
+
+    void ShowPopupAdauga()
+    {
+        popupAdauga = true;
+    }
+    void ShowPopupSterge()
+    {
+        popupSterge = true;
+    }
+    void ClosePopupAdauga()
+    {
+        popupAdauga = false;
+        alert = false;
+        produsNou = new Produse();
+    }
+    void ClosePopupSterge()
+    {
+        popupSterge = false;
+        alert = false;
+        produsNou = new Produse();
+    }
+    void AdaugaProdus()
+    {
+        if (produse.Count >= 3)
+        {
+            alert = true;
+            return;
+        }
+        Methods.OpenCon(con);
+        com.Connection = con;
+        com.CommandText = "INSERT into Produse" + "(Cod, Descriere, Pret, Cantitate) values (@Cod, @Descriere, @Pret, @Cantitate)";
+        com.Parameters.Clear();
+        com.Parameters.AddWithValue("@Cod", produsNou.Cod);
+        com.Parameters.AddWithValue("@Descriere", produsNou.Descriere);
+        com.Parameters.AddWithValue("@Pret", produsNou.Pret);
+        com.Parameters.AddWithValue("@Cantitate", produsNou.Cantitate);
+        if (com.ExecuteNonQuery() > 0)
+        {
+            con.Close();
+            produse = Methods.FetchProduse();
+            produsNou = new Produse();
+            popupAdauga = false;
+        }
+        else
+        {
+            con.Close();
+        }
+    }
+    void StergeProdus()
+    {
+        Methods.OpenCon(con);
+        com.Connection = con;
+        com.CommandText = "DELETE FROM Produse WHERE Cod = '" + produsNou.Cod + "'";
+        if (com.ExecuteNonQuery() > 0)
+        {
+            con.Close();
+            alert = false;
+            popupSterge = false;
+            produse = Methods.FetchProduse();
+            produsNou = new Produse();
+        }
+        else
+        {
+            con.Close();
+            alert = true;
+        }
+    }
+
+}
